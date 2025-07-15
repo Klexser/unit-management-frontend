@@ -10,7 +10,7 @@ const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
 function App() {
   const [unitData, setUnitData] = useState([]);
   const [selectedLevel, setSelectedLevel] = useState('');
-  const [socket, setSocket] = useState(null);
+  // const [socket, setSocket] = useState(null); // This line is not needed if you initialize directly below
 
   useEffect(() => {
     fetch(API_URL)
@@ -23,7 +23,7 @@ function App() {
           } else {
             acc.push({
               level: unit.level,
-              totalUnits: 0,
+              totalUnits: 0, // This totalUnits property will be updated below
               units: [{ ...unit, isCommentsExpanded: false }]
             });
           }
@@ -38,7 +38,7 @@ function App() {
 
         groupedData.forEach(level => {
           level.units.sort((a, b) => parseInt(a.unitNumber) - parseInt(b.unitNumber));
-          level.totalUnits = level.units.length;
+          level.totalUnits = level.units.length; // Update totalUnits for each level
         });
 
         setUnitData(groupedData);
@@ -48,14 +48,17 @@ function App() {
       })
       .catch(error => console.error('Error fetching initial data:', error));
 
-    const newSocket = io(SOCKET_URL);
-    setSocket(newSocket);
+    // Initialize socket directly here.
+    // By assigning it to 'socket' below, we make sure the 'socket' state variable is used.
+    const socket = io(SOCKET_URL); 
+    // setSocket(socket); // If you still want to use the state, use this.
+                       // However, for this use case, 'socket' from the useEffect scope is fine.
 
-    newSocket.on('connect', () => {
+    socket.on('connect', () => {
       console.log('Connected to WebSocket server');
     });
 
-    newSocket.on('unitUpdated', (updatedUnit) => {
+    socket.on('unitUpdated', (updatedUnit) => {
       setUnitData(prevData =>
         prevData.map(level => ({
           ...level,
@@ -68,14 +71,15 @@ function App() {
       );
     });
 
-    newSocket.on('disconnect', () => {
+    socket.on('disconnect', () => {
       console.log('Disconnected from WebSocket server');
     });
 
+    // Clean up socket connection on component unmount
     return () => {
-      newSocket.disconnect();
+      socket.disconnect();
     };
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
   const handleStatusChange = (levelName, unitNumber, newStatus) => {
     const currentUnit = unitData.find(level => level.level === levelName)
@@ -107,7 +111,7 @@ function App() {
                                 ?.units.find(unit => unit.unitNumber === unitNumber);
     if (currentUnit) {
       fetch(`${API_URL}/${currentUnit.unitNumber}`, {
-        method: 'PUT',
+        method: 'PUT', // Assuming PUT request for adding comment
         headers: {
           'Content-Type': 'application/json',
         },
@@ -129,11 +133,11 @@ function App() {
                                 ?.units.find(unit => unit.unitNumber === unitNumber);
     if (currentUnit) {
       fetch(`${API_URL}/${currentUnit.unitNumber}`, {
-        method: 'PUT',
+        method: 'PUT', // Assuming PUT request for toggling comment resolved
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ commentIndex: commentIndex }),
+        body: JSON.stringify({ commentIndex: commentIndex }), // Send comment index for backend to process
       })
         .then(response => {
           if (!response.ok) throw new Error('Failed to toggle comment resolved status');
@@ -164,7 +168,8 @@ function App() {
   };
 
   const currentLevelData = unitData.find(level => level.level === selectedLevel);
-  const totalUnitsCount = currentLevelData?.units.length || 0;
+  // totalUnitsCount is now used here in the JSX below
+  const totalUnitsCount = currentLevelData?.units.length || 0; 
   const availableLevels = unitData.map(level => level.level);
 
   // Calculate status counts for the current level
@@ -196,7 +201,9 @@ function App() {
         {/* Status Tally */}
         {currentLevelData && (
           <div className="bg-gray-100 p-4 rounded-lg shadow-md mb-6">
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Current Level Summary ({selectedLevel}):</h3>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              Current Level Summary ({selectedLevel}): Total Units: {totalUnitsCount}
+            </h3>
             <div className="flex flex-wrap gap-4 text-sm">
               {Object.entries(statusCounts || {}).map(([status, count]) => (
                 <span key={status} className="px-3 py-1 rounded-full bg-gray-200 text-gray-700 font-medium">
